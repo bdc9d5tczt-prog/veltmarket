@@ -1,0 +1,1512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VeltMarket | Fixed Odds Markets</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+    <style>
+        /* Style for modal backdrop */
+        .modal-backdrop {
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+        /* Hide scrollbar when modal is open */
+        body.modal-open {
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900 font-sans">
+
+    <nav class="bg-white p-4 shadow-sm border-b border-gray-200 sticky top-0 z-40">
+        <div class="container mx-auto flex justify-between items-center">
+            
+            <h1 class="text-3xl font-bold text-gray-900">
+                <span class="text-purple-600">Velt</span>Market
+            </h1>
+
+            <button id="hamburgerButtonMobileToggle" class="md:hidden p-2 rounded-lg hover:bg-gray-100">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+            </button>
+            
+            <div class="hidden md:flex items-center gap-4">
+                
+                <span id="walletBalance" class="hidden text-sm font-medium text-gray-700 bg-gray-100 px-3 py-2 rounded-lg"></span>
+                <span id="walletAddress" class="text-sm bg-gray-100 text-gray-700 border border-gray-300 px-3 py-2 rounded-lg hidden font-mono"></span>
+                <button id="hamburgerButtonDesktopToggle" class="hidden p-2 rounded-lg hover:bg-gray-100"> <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                </button>
+
+                <button id="walletButtonDesktop" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
+                    Connect Wallet
+                </button>
+            </div>
+            
+        </div>
+
+        <div id="navMenu" class="hidden absolute top-[69px] right-4 bg-white shadow-lg p-4 border border-gray-200 z-30 w-80 rounded-lg">
+            <div class="flex flex-col gap-4">
+                
+                <div id="walletInfoMobile" class="hidden p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-sm font-medium text-gray-600">Wallet</span>
+                        <span id="walletAddressMobile" class="text-sm bg-gray-200 text-gray-700 border border-gray-300 px-2 py-0.5 rounded-lg font-mono"></span>
+                    </div>
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-sm font-medium text-gray-600">Balance</span>
+                        <span id="walletBalanceMobile" class="text-sm font-medium text-gray-700"></span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm font-medium text-gray-600">Network</span>
+                        <div id="networkStatusMobile" class="text-sm"></div>
+                    </div>
+                </div>
+                
+                <button id="walletButtonMobile" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300 w-full">
+                    Connect Wallet
+                </button>
+
+                <div id="menuActionsMobile" class="hidden flex-col">
+                    <button id="profileButtonMobile" class="w-full text-left p-3 rounded-lg hover:bg-gray-100 font-medium text-gray-700 transition duration-300">
+                        My Portfolio
+                    </button>
+                    <button id="showCreateMarketButtonMobile" class="w-full text-left p-3 rounded-lg hover:bg-gray-100 font-medium text-gray-700 transition duration-300">
+                        Create Market
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mx-auto p-4 sm:p-6">
+
+        <div id="messageArea" class="fixed bottom-4 left-4 right-4 sm:bottom-10 sm:right-10 sm:left-auto sm:max-w-sm z-50 space-y-3"></div>
+
+        <div id="marketFilterContainer" class="flex flex-wrap items-center gap-2 mb-6">
+             <button id="filterAll" class="market-filter-btn bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 font-semibold py-2 px-4 rounded-lg transition duration-300 text-sm">
+                All
+            </button>
+            <button id="filterOpen" class="market-filter-btn bg-purple-600 text-white font-semibold py-2 px-4 rounded-lg transition duration-300 text-sm">
+                Open
+            </button>
+            <button id="filterClosed" class="market-filter-btn bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 font-semibold py-2 px-4 rounded-lg transition duration-300 text-sm">
+                Closed
+            </button>
+        </div>
+
+        <div id="marketsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <p id="marketsPlaceholder" class="text-gray-500 col-span-full text-center text-lg">
+                Please connect your wallet to load markets.
+            </p>
+        </div>
+    </div>
+
+    <div id="walletTypeModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="modal-backdrop absolute inset-0"></div>
+        <div class="bg-white p-6 rounded-lg shadow-xl z-10 w-full max-w-sm">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-semibold">Connect Wallet</h2>
+                <button id="closeWalletTypeModal" class="text-gray-400 hover:text-gray-600 text-3xl">&times;</button>
+            </div>
+            <div class="space-y-4">
+                <button id="connectMetaMaskButton" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300">
+                    Connect MetaMask
+                </button>
+                <button id="connectPrivateKeyButton" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-lg transition duration-300">
+                    Use In-Browser Wallet
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="privateKeyModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="modal-backdrop absolute inset-0"></div>
+        <div class="bg-white p-6 rounded-lg shadow-xl z-10 w-full max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-semibold">In-Browser Wallet</h2>
+                <button id="closePrivateKeyModal" class="text-gray-400 hover:text-gray-600 text-3xl">&times;</button>
+            </div>
+            
+            <div class="p-4 bg-red-50 border border-red-300 text-red-700 rounded-lg mb-4">
+                <h3 class="font-bold">SECURITY WARNING</h3>
+                <p class="text-sm">Pasting your private key is extremely dangerous and can lead to total loss of funds. Only use a new, empty wallet for testing. This key is held in memory and is **gone on refresh**.</p>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label for="privateKeyInput" class="block text-sm font-medium text-gray-700 mb-1">Import Private Key</label>
+                    <input type="password" id="privateKeyInput" placeholder=""
+                        class="w-full bg-white text-gray-900 border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500" />
+                </div>
+                <button id="importPrivateKeyButton" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300">
+                    Import Wallet
+                </button>
+                
+                <div class="relative flex py-2 items-center">
+                    <div class="flex-grow border-t border-gray-300"></div>
+                    <span class="flex-shrink mx-4 text-gray-500 text-sm">OR</span>
+                    <div class="flex-grow border-t border-gray-300"></div>
+                </div>
+
+                <button id="createNewWalletButton" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-lg transition duration-300">
+                    Create New Wallet
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="newWalletModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="modal-backdrop absolute inset-0"></div>
+        <div class="bg-white p-6 rounded-lg shadow-xl z-10 w-full max-w-md">
+            <h2 class="text-2xl font-semibold mb-4">New Wallet Created</h2>
+            <div class="p-4 bg-red-50 border border-red-300 text-red-700 rounded-lg mb-4">
+                <h3 class="font-bold">SAVE THIS KEY!</h3>
+                <p class="text-sm">This key is **not recoverable**. If you lose it or refresh the page, it is gone forever. Write it down!</p>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Address</label>
+                    <input id="newWalletAddress" type="text" readonly class="w-full bg-gray-100 text-gray-700 border border-gray-300 rounded-lg px-3 py-2 font-mono text-sm" />
+                </div>
+                <div class="mt-4">
+                    <label class="block text-sm font-medium text-gray-700">Private Key</label>
+                    <input id="newWalletKey" type="text" readonly class="w-full bg-gray-100 text-gray-700 border border-gray-300 rounded-lg px-3 py-2 font-mono text-sm" />
+                </div>
+                <button id="useNewWalletButton" class="mt-6 w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300">
+                    I have backed it up, Continue
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="gasAlertModal" class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4">
+        <div class="modal-backdrop absolute inset-0"></div>
+        <div class="bg-white p-6 rounded-lg shadow-xl z-10 w-full max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-semibold">Confirm Transaction</h2>
+                <button id="closeGasAlertModal" class="text-gray-400 hover:text-gray-600 text-3xl">&times;</button>
+            </div>
+            <div class="space-y-4">
+                <p class="text-gray-700">You are about to perform the action: <strong id="gasAlertAction" class="text-gray-900">...</strong></p>
+                <div class="p-4 bg-purple-50 border border-purple-200 text-purple-800 rounded-lg">
+                    <p class="text-sm">Estimated Maximum Transaction Fee:</p>
+                    <p class="text-2xl font-bold"><span id="gasAlertFee">...</span> POL</p>
+                </div>
+                <p class="text-xs text-gray-500">This is the maximum possible cost. The actual fee is usually lower. This alert is shown because you are using an in-browser wallet.</p>
+                <div class="grid grid-cols-2 gap-4">
+                    <button id="cancelGasAlertButton" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-lg transition duration-300">
+                        Cancel
+                    </button>
+                    <button id="confirmGasAlertButton" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300">
+                        Confirm
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="profileModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="modal-backdrop absolute inset-0"></div>
+        <div class="bg-white p-6 rounded-lg shadow-xl z-10 w-full max-w-3xl max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center mb-4 pb-4 border-b border-gray-200">
+                <h2 class="text-2xl font-semibold">My Portfolio</h2>
+                <button id="closeProfileModal" class="text-gray-400 hover:text-gray-600 text-3xl">&times;</button>
+            </div>
+            <div class="overflow-y-auto">
+                <div class="mb-6">
+                    <label class="text-sm font-medium text-gray-600">Wallet Address</label>
+                    <div id="profileAddress" class="text-base text-gray-800 bg-gray-100 border border-gray-200 p-3 rounded-lg font-mono text-sm break-all mt-1"></div>
+                </div>
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-semibold">My Positions</h3>
+                    <button id="refreshStatsButton" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 text-sm">
+                        Refresh Stats
+                    </button>
+                </div>
+                <p id="profileBetsStatus" class="text-sm text-gray-500 mb-4">Click "Refresh Stats" to see all your positions (active and settled).</p>
+                <div id="betHistoryList" class="space-y-4"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="createMarketModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="modal-backdrop absolute inset-0"></div>
+        <div class="bg-white p-6 rounded-lg shadow-xl z-10 w-full max-w-lg">
+            <div class="flex justify-between items-center mb-4 pb-4 border-b border-gray-200">
+                <h2 class="text-2xl font-semibold">Create New Market</h2>
+                <button id="closeCreateMarketModal" class="text-gray-400 hover:text-gray-600 text-3xl">&times;</button>
+            </div>
+            <p class="text-sm text-gray-600 mb-6">You must provide initial liquidity (in POL) to act as the "house" for your market. This liquidity will be split 50/50 to set the starting price.</p>
+            <div class="space-y-4">
+                <div>
+                    <label for="marketNameInput" class="block text-sm font-medium text-gray-700 mb-1">Market Name</label>
+                    <input type="text" id="marketNameInput" placeholder="e.g., Will X win the election?"
+                        class="w-full bg-white text-gray-900 border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500" />
+                </div>
+                 <div>
+                    <label for="marketDescriptionInput" class="block text-sm font-medium text-gray-700 mb-1">Description & Rules</label>
+                    <textarea id="marketDescriptionInput" placeholder="Clearly state the event and resolution source."
+                        class="w-full bg-white text-gray-900 border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                        rows="3"></textarea>
+                 </div>
+                 <div>
+                    <label for="marketLiquidityInput" class="block text-sm font-medium text-gray-700 mb-1">Initial Liquidity (POL)</label>
+                    <input type="number" step="0.01" min="0.002" id="marketLiquidityInput" placeholder="e.g., 10"
+                        class="w-full bg-white text-gray-900 border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500" />
+                 </div>
+                <button id="createMarketButton"
+                    class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300">
+                    Submit Market
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="marketDetailModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="modal-backdrop absolute inset-0"></div>
+        <div class="bg-white p-6 rounded-lg shadow-xl z-10 w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center mb-4 pb-4 border-b border-gray-200">
+                <h2 class="text-2xl font-semibold">Market Details</h2>
+                <button id="closeMarketDetailModal" class="text-gray-400 hover:text-gray-600 text-3xl">&times;</button>
+            </div>
+            <div id="marketDetailContent" class="overflow-y-auto"></div>
+        </div>
+    </div>
+
+
+    <script>
+        // --- Contract ABIs (Unchanged) ---
+        const factoryABI = [
+            "function getAllMarkets() public view returns (address[] memory)",
+            "event MarketCreated(uint indexed id, address indexed marketAddress, address indexed creator, string name, uint initialLiquidity)",
+            "function createMarket(string memory _name, string memory _description) external payable"
+        ];
+
+        const marketABI = [
+            "function name() view returns (string)",
+            "function description() view returns (string)",
+            "function marketOwner() view returns (address)",
+            "function marketState() view returns (uint8)",
+            "function poolYes() view returns (uint256)",
+            "function poolNo() view returns (uint256)",
+            "function getPayout(uint8 _outcome, uint _amountBet) view returns (uint amountToWin)",
+            "function getPrices() view returns (uint priceYes, uint priceNo)",
+            "function getBetsCount() view returns (uint)",
+            "function bets(uint index) view returns (address user, uint8 outcome, uint amountBet, uint amountToWin, bool hasBeenClaimed)",
+            "function totalUserBetAmount(address) view returns (uint)",
+            "function getBetIdsForUser(address _user) view returns (uint[] memory)",
+            "function placeBet(uint8 _outcome) external payable",
+            "function settleMarket(uint8 _finalOutcome) external",
+            "function claimWinnings(uint _betIdToClaim) external"
+        ];
+
+        // --- Global Variables ---
+        const FACTORY_ADDRESS = "0xCeA371CEAf577E6245a259029C32fed86A5FBEaB";
+        
+        const PK_RPC_URL = "https://polygon-rpc.com/";
+        const PK_CHAIN_ID = 137;
+
+        let provider;
+        let signer;
+        let factoryContract;
+        let allMarketData = [];
+        let currentMarketFilter = 'open';
+        let currentWalletMode = null;
+        let activeAddress = null;
+
+        // --- DOM Elements ---
+        const marketsContainer = document.getElementById('marketsContainer');
+        const marketsPlaceholder = document.getElementById('marketsPlaceholder');
+        const messageArea = document.getElementById('messageArea');
+        const marketFilterContainer = document.getElementById('marketFilterContainer');
+        const navMenu = document.getElementById('navMenu');
+        
+        // [NEW] Desktop nav elements
+        const hamburgerButtonMobileToggle = document.getElementById('hamburgerButtonMobileToggle');
+        const hamburgerButtonDesktopToggle = document.getElementById('hamburgerButtonDesktopToggle');
+        const walletBalance = document.getElementById('walletBalance');
+        const walletAddress = document.getElementById('walletAddress');
+        const walletButtonDesktop = document.getElementById('walletButtonDesktop');
+        
+        // Mobile (popup) menu elements
+        const walletButtonMobile = document.getElementById('walletButtonMobile');
+        const walletBalanceMobile = document.getElementById('walletBalanceMobile');
+        const walletAddressMobile = document.getElementById('walletAddressMobile');
+        const networkStatusMobile = document.getElementById('networkStatusMobile');
+        const profileButtonMobile = document.getElementById('profileButtonMobile');
+        const showCreateMarketButtonMobile = document.getElementById('showCreateMarketButtonMobile');
+        const walletInfoMobile = document.getElementById('walletInfoMobile');
+        const menuActionsMobile = document.getElementById('menuActionsMobile');
+        
+        // Modals
+        const profileModal = document.getElementById('profileModal');
+        const closeProfileModal = document.getElementById('closeProfileModal');
+        const profileAddress = document.getElementById('profileAddress');
+        const betHistoryList = document.getElementById('betHistoryList');
+        const profileBetsStatus = document.getElementById('profileBetsStatus');
+        const refreshStatsButton = document.getElementById('refreshStatsButton');
+        
+        const createMarketModal = document.getElementById('createMarketModal');
+        const closeCreateMarketModal = document.getElementById('closeCreateMarketModal');
+        const createMarketButton = document.getElementById('createMarketButton');
+        const marketNameInput = document.getElementById('marketNameInput');
+        const marketDescriptionInput = document.getElementById('marketDescriptionInput');
+        const marketLiquidityInput = document.getElementById('marketLiquidityInput');
+
+        const marketDetailModal = document.getElementById('marketDetailModal');
+        const marketDetailContent = document.getElementById('marketDetailContent');
+        const closeMarketDetailModal = document.getElementById('closeMarketDetailModal');
+
+        const walletTypeModal = document.getElementById('walletTypeModal');
+        const closeWalletTypeModal = document.getElementById('closeWalletTypeModal');
+        const connectMetaMaskButton = document.getElementById('connectMetaMaskButton');
+        const connectPrivateKeyButton = document.getElementById('connectPrivateKeyButton');
+        
+        const privateKeyModal = document.getElementById('privateKeyModal');
+        const closePrivateKeyModal = document.getElementById('closePrivateKeyModal');
+        const privateKeyInput = document.getElementById('privateKeyInput');
+        const importPrivateKeyButton = document.getElementById('importPrivateKeyButton');
+        const createNewWalletButton = document.getElementById('createNewWalletButton');
+        
+        const newWalletModal = document.getElementById('newWalletModal');
+        const newWalletAddress = document.getElementById('newWalletAddress');
+        const newWalletKey = document.getElementById('newWalletKey');
+        const useNewWalletButton = document.getElementById('useNewWalletButton');
+
+        const gasAlertModal = document.getElementById('gasAlertModal');
+        const closeGasAlertModal = document.getElementById('closeGasAlertModal');
+        const cancelGasAlertButton = document.getElementById('cancelGasAlertButton');
+        const confirmGasAlertButton = document.getElementById('confirmGasAlertButton');
+        const gasAlertAction = document.getElementById('gasAlertAction');
+        const gasAlertFee = document.getElementById('gasAlertFee');
+
+
+        /**
+         * Initializes the application
+         */
+        async function init() {
+            marketsContainer.addEventListener('click', handleSmallCardClick);
+            marketDetailModal.addEventListener('click', handleModalBetClick);
+            marketDetailModal.addEventListener('input', handleModalBetInput);
+            marketFilterContainer.addEventListener('click', handleFilterClick);
+            
+            // [CHANGED] Listeners for nav toggles
+            hamburgerButtonMobileToggle.addEventListener('click', toggleMobileMenu);
+            hamburgerButtonDesktopToggle.addEventListener('click', toggleMobileMenu);
+            walletButtonDesktop.addEventListener('click', toggleWalletModal); // Desktop "Connect"
+            walletButtonMobile.addEventListener('click', toggleWalletModal); // Popup "Connect/Switch"
+
+            closeWalletTypeModal.addEventListener('click', () => hideModal(walletTypeModal));
+            connectMetaMaskButton.addEventListener('click', connectMetaMask);
+            connectPrivateKeyButton.addEventListener('click', () => {
+                hideModal(walletTypeModal);
+                showModal(privateKeyModal);
+            });
+
+            closePrivateKeyModal.addEventListener('click', () => hideModal(privateKeyModal));
+            importPrivateKeyButton.addEventListener('click', importPrivateKey);
+            createNewWalletButton.addEventListener('click', createNewPrivateKey);
+            useNewWalletButton.addEventListener('click', useNewWallet);
+
+            // Listeners for actions inside the popup menu
+            profileButtonMobile.addEventListener('click', openProfileModal);
+            showCreateMarketButtonMobile.addEventListener('click', () => showModal(createMarketModal));
+
+            navMenu.addEventListener('click', (event) => {
+                // Close the menu if any button *inside* it is clicked
+                if (event.target.closest('button')) {
+                    // We need to delay this slightly so the button's primary action
+                    // (like opening another modal) can execute first.
+                    setTimeout(() => {
+                        hideModal(navMenu);
+                    }, 100);
+                }
+            });
+
+            betHistoryList.addEventListener('click', handleClaimClick);
+            refreshStatsButton.addEventListener('click', loadProfileStats);
+            createMarketButton.addEventListener('click', createMarket);
+            
+            [profileModal, createMarketModal, marketDetailModal, walletTypeModal, privateKeyModal, newWalletModal].forEach(modal => {
+                modal.addEventListener('click', (event) => {
+                    if (event.target.classList.contains('modal-backdrop')) {
+                        hideModal(modal);
+                    }
+                });
+            });
+            closeProfileModal.addEventListener('click', () => hideModal(profileModal));
+            closeCreateMarketModal.addEventListener('click', () => hideModal(createMarketModal));
+            closeMarketDetailModal.addEventListener('click', () => hideModal(marketDetailModal));
+        }
+
+        // --- UI Helper Functions ---
+        function toggleMobileMenu() {
+            navMenu.classList.toggle('hidden');
+            // If we're opening the menu, add the modal-open class
+            if (!navMenu.classList.contains('hidden')) {
+                document.body.classList.add('modal-open');
+            } else {
+                // If we're closing it, check if any other modals are open
+                hideModal(navMenu);
+            }
+        }
+
+        function showModal(modal) {
+            modal.classList.remove('hidden');
+            document.body.classList.add('modal-open');
+        }
+
+        function hideModal(modal) {
+            modal.classList.add('hidden');
+            
+            // Check if any *other* modal (including navMenu) is still open
+            const allModals = [profileModal, createMarketModal, marketDetailModal, walletTypeModal, privateKeyModal, newWalletModal, gasAlertModal, navMenu];
+            const isAnyModalOpen = allModals.some(m => !m.classList.contains('hidden'));
+
+            if (!isAnyModalOpen) {
+                document.body.classList.remove('modal-open');
+            }
+           
+            if (modal === marketDetailModal) {
+                marketDetailContent.innerHTML = "";
+            }
+        }
+
+        function openProfileModal() {
+            showModal(profileModal);
+        }
+
+        function showGasConfirmModal(estimatedFee, actionDescription) {
+            return new Promise((resolve) => {
+                gasAlertAction.textContent = actionDescription;
+                gasAlertFee.textContent = parseFloat(estimatedFee).toFixed(6);
+                
+                const handleConfirm = () => {
+                    hideModal(gasAlertModal);
+                    cleanup();
+                    resolve(true);
+                };
+
+                const handleCancel = () => {
+                    hideModal(gasAlertModal);
+                    cleanup();
+                    resolve(false);
+                };
+                
+                const backdrop = gasAlertModal.querySelector('.modal-backdrop');
+
+                const cleanup = () => {
+                    confirmGasAlertButton.removeEventListener('click', handleConfirm);
+                    closeGasAlertModal.removeEventListener('click', handleCancel);
+                    cancelGasAlertButton.removeEventListener('click', handleCancel);
+                    backdrop.removeEventListener('click', handleCancel);
+                };
+                
+                confirmGasAlertButton.addEventListener('click', handleConfirm);
+                closeGasAlertModal.addEventListener('click', handleCancel);
+                cancelGasAlertButton.addEventListener('click', handleCancel);
+                backdrop.addEventListener('click', handleCancel);
+
+                showModal(gasAlertModal);
+            });
+        }
+
+        // --- Wallet Connection Logic ---
+
+        function toggleWalletModal() {
+            if (signer) {
+                disconnect();
+            } else {
+                showModal(walletTypeModal);
+            }
+        }
+
+        async function connectMetaMask() {
+            if (typeof window.ethereum === 'undefined') {
+                return showMessage("MetaMask not installed.", "error");
+            }
+            try {
+                hideModal(walletTypeModal);
+                await window.ethereum.request({ method: 'eth_requestAccounts' });
+                
+                provider = new ethers.providers.Web3Provider(window.ethereum);
+                signer = provider.getSigner();  
+                const address = await signer.getAddress();
+                
+                await onWalletConnected(address, 'metamask');
+                
+                window.ethereum.on('accountsChanged', (accounts) => {
+                    if (accounts.length === 0) {
+                        disconnect();
+                    } else {
+                        connectMetaMask();
+                    }
+                });
+                window.ethereum.on('chainChanged', () => {
+                    connectMetaMask();
+                });
+
+            } catch (error) {
+                console.error("MetaMask connection failed:", error);
+                showMessage("Failed to connect wallet.", "error");
+                disconnect();
+            }
+        }
+
+        async function importPrivateKey() {
+            const pk = privateKeyInput.value;
+            if (!pk) {
+                return showMessage("Please enter a private key.", "error");
+            }
+            try {
+                const network = {
+                    name: "matic",
+                    chainId: PK_CHAIN_ID
+                };
+                provider = new ethers.providers.StaticJsonRpcProvider(PK_RPC_URL, network);
+
+                signer = new ethers.Wallet(pk, provider);
+                const address = await signer.getAddress();
+                
+                privateKeyInput.value = "";
+                hideModal(privateKeyModal);
+                await onWalletConnected(address, 'privatekey');
+
+            } catch (error) {
+                console.error("Private key import failed:", error);
+                showMessage("Invalid private key.", "error");
+                disconnect();
+            }
+        }
+
+        function createNewPrivateKey() {
+            const newWallet = ethers.Wallet.createRandom();
+            newWalletAddress.value = newWallet.address;
+            newWalletKey.value = newWallet.privateKey;
+            
+            useNewWalletButton.dataset.key = newWallet.privateKey;
+            
+            hideModal(privateKeyModal);
+            showModal(newWalletModal);
+        }
+
+        async function useNewWallet() {
+            const pk = useNewWalletButton.dataset.key;
+            try {
+                const network = {
+                    name: "matic",
+                    chainId: PK_CHAIN_ID
+                };
+                provider = new ethers.providers.StaticJsonRpcProvider(PK_RPC_URL, network);
+                
+                signer = new ethers.Wallet(pk, provider);
+                const address = await signer.getAddress();
+                
+                hideModal(newWalletModal);
+                await onWalletConnected(address, 'privatekey');
+            } catch (error) {
+                console.error("Failed to use new wallet:", error);
+                showMessage("An error occurred. Check RPC or private key.", "error");
+                disconnect();
+            }
+        }
+
+        async function onWalletConnected(address, mode) {
+            currentWalletMode = mode;
+            activeAddress = address;
+            
+            factoryContract = new ethers.Contract(FACTORY_ADDRESS, factoryABI, signer);
+            
+            updateWalletUI(address);
+            profileAddress.textContent = address;
+
+            await checkNetwork();
+            await getBalance(); // This will now populate both desktop and mobile balances
+            loadMarkets();
+        }
+
+        function disconnect() {
+            provider = null;
+            signer = null;
+            factoryContract = null;
+            currentWalletMode = null;
+            activeAddress = null;
+            allMarketData = [];
+            
+            updateWalletUI(null);  
+            marketsContainer.innerHTML = '';
+            marketsPlaceholder.textContent = "Please connect your wallet.";
+            
+            [profileModal, createMarketModal, marketDetailModal, walletTypeModal, privateKeyModal, newWalletModal, gasAlertModal, navMenu].forEach(hideModal);
+            document.body.classList.remove('modal-open');
+
+            if (window.ethereum && window.ethereum.removeAllListeners) {
+                window.ethereum.removeAllListeners('accountsChanged');
+                window.ethereum.removeAllListeners('chainChanged');
+            }
+        }
+
+
+        async function getBalance() {
+            if (!provider || !activeAddress) return;
+            try {
+                const balanceWei = await provider.getBalance(activeAddress);
+                const balancePol = ethers.utils.formatEther(balanceWei);
+                const balanceFormatted = parseFloat(balancePol).toFixed(4) + " POL";
+                
+                // [CHANGED] Populate both desktop and mobile popup balances
+                walletBalance.textContent = balanceFormatted;
+                walletBalanceMobile.textContent = balanceFormatted;
+
+            } catch (error) {
+                console.error("Failed to get balance:", error);
+                walletBalance.textContent = "Error";
+                walletBalanceMobile.textContent = "Error";
+            }
+        }
+        
+        // [CHANGED] This function now updates BOTH desktop and mobile UI
+        function updateWalletUI(address) {
+            const isConnected = !!address;
+            const shortAddress = isConnected ? `${address.slice(0, 6)}...${address.slice(-4)}` : '';
+
+            // --- Desktop UI ---
+            walletBalance.classList.toggle('hidden', !isConnected);
+            walletAddress.classList.toggle('hidden', !isConnected);
+            hamburgerButtonDesktopToggle.classList.toggle('hidden', !isConnected); // Show hamburger only when connected
+            walletButtonDesktop.classList.toggle('hidden', isConnected); // Hide "Connect" button when connected
+            
+            if (isConnected) {
+                walletAddress.textContent = shortAddress;
+                // walletBalance is populated by getBalance()
+            }
+
+            // --- Mobile/Popup UI ---
+            walletButtonMobile.textContent = isConnected ? "Switch Wallet" : "Connect Wallet";
+            walletInfoMobile.classList.toggle('hidden', !isConnected);
+            menuActionsMobile.classList.toggle('hidden', !isConnected);
+            
+            if (isConnected) {
+                walletAddressMobile.textContent = shortAddress;
+                // walletBalanceMobile is populated by getBalance()
+            }
+
+            // --- Common fields ---
+            if (!isConnected) {
+                networkStatusMobile.textContent = "";
+                networkStatusMobile.className = "text-sm";
+                walletBalance.textContent = ""; // Clear desktop balance
+                walletBalanceMobile.textContent = ""; // Clear mobile balance
+            }
+        }
+
+        async function checkNetwork() {
+            if (!provider) return;
+            
+            const baseClass = "text-xs font-semibold px-3 py-1 rounded-full border";
+            let networkText = "";
+            let networkClasses = "";
+            let network;
+
+            try {
+                if (currentWalletMode === 'metamask') {
+                    network = await provider.getNetwork();
+                    
+                    if (network.chainId === 137) {
+                        networkText = "Polygon Mainnet";
+                        networkClasses = `${baseClass} bg-purple-100 text-purple-700 border-purple-200`;
+                    } else if (network.chainId === 80002) {
+                        networkText = "Amoy Testnet";
+                        networkClasses = `${baseClass} bg-yellow-100 text-yellow-700 border-yellow-200`;
+                    } else {
+                        networkText = "Wrong Network";
+                        networkClasses = `${baseClass} bg-red-100 text-red-700 border-red-200`;
+                        showMessage("Please switch to Polygon Mainnet (137) or Amoy Testnet (80002).", "error");
+                    }
+                } else if (currentWalletMode === 'privatekey') {
+                    network = { chainId: PK_CHAIN_ID };
+                    networkText = "Polygon Mainnet (PK)";
+                    networkClasses = `${baseClass} bg-purple-100 text-purple-700 border-purple-200`;
+                }
+
+                // [CHANGED] Only update the mobile (popup) network status
+                // Desktop view no longer has a dedicated network status field
+                networkStatusMobile.textContent = networkText;
+                networkStatusMobile.className = networkClasses;
+            } catch (error) {
+                console.error("Network check failed:", error);
+                networkStatusMobile.textContent = "Net Error";
+                networkStatusMobile.className = `${baseClass} bg-red-100 text-red-700 border-red-200`;
+            }
+        }
+
+        // --- Core App Logic (Unchanged from here) ---
+
+        async function loadProfileStats() {
+            if (!signer || !factoryContract || !activeAddress) {
+                return showMessage("Please connect your wallet first.", "error");
+            }
+
+            profileBetsStatus.textContent = "Loading... Scanning all markets for your positions...";
+            refreshStatsButton.disabled = true;
+            refreshStatsButton.textContent = "Loading...";
+            betHistoryList.innerHTML = "";
+
+            try {
+                if (allMarketData.length === 0) {
+                   await fetchAllMarketData();
+                }
+
+                const userAddress = activeAddress;
+                let allUserBets = [];
+                let marketsScanned = 0;
+                
+                for (const market of allMarketData) {
+                    try {
+                        const marketContract = new ethers.Contract(market.address, marketABI, provider);
+                        const userBetIds = await marketContract.getBetIdsForUser(userAddress);
+                        
+                        if (userBetIds.length > 0) {
+                            for (const betId of userBetIds) {
+                                const bet = await marketContract.bets(betId);
+                                const hasBeenClaimed = bet[4];
+
+                                let status = "Active";
+                                let isWinner = false;
+                                if (market.state === 1) { // SettledYes
+                                    status = (bet[1] == 1) ? "Won" : "Lost";
+                                    isWinner = (bet[1] == 1);
+                                } else if (market.state === 2) { // SettledNo
+                                    status = (bet[1] == 0) ? "Won" : "Lost";
+                                    isWinner = (bet[1] == 0);
+                                }
+                                
+                                if (isWinner && hasBeenClaimed) {
+                                    status = "Claimed";
+                                }
+
+                                allUserBets.push({
+                                    marketName: market.name,
+                                    betData: bet,
+                                    status: status,
+                                    betId: betId,
+                                    marketAddress: market.address
+                                });
+                            }
+                        }
+                        marketsScanned++;
+                        profileBetsStatus.textContent = `Scanning... ${marketsScanned} of ${allMarketData.length} markets checked.`;
+
+                    } catch (err) {
+                        console.error(`Failed to scan market ${market.address}:`, err);
+                    }
+                }
+
+                if (allUserBets.length === 0) {
+                    profileBetsStatus.textContent = "You have not placed any positions yet.";
+                    betHistoryList.innerHTML = `<p class="text-gray-500 text-sm">No positions found.</p>`;
+                } else {
+                    profileBetsStatus.textContent = `Found ${allUserBets.length} position(s) across ${allMarketData.length} market(s).`;
+                    allUserBets.forEach(renderBetHistoryCard);
+                }
+
+            } catch (error) {
+                console.error("Error loading profile stats:", error);
+                showMessage("Failed to load profile stats.", "error");
+                profileBetsStatus.textContent = "Error loading stats.";
+            } finally {
+                refreshStatsButton.disabled = false;
+                refreshStatsButton.textContent = "Refresh Stats";
+            }
+        }
+
+        function renderBetHistoryCard(betInfo) {
+            const [user, outcome, amountBet, amountToWin, hasBeenClaimed] = betInfo.betData;
+
+            const outcomeText = outcome == 1 ? "YES" : "NO";
+            const outcomeColor = outcome == 1 ? "text-green-600" : "text-red-600";
+            
+            const amountBetFormatted = parseFloat(ethers.utils.formatEther(amountBet)).toFixed(4);
+            
+            const totalPayout = amountBet.add(amountToWin);  
+            const totalPayoutFormatted = parseFloat(ethers.utils.formatEther(totalPayout)).toFixed(4);
+            
+            let statusClass = "bg-yellow-100 text-yellow-800"; // Active
+            if (betInfo.status === "Won") statusClass = "bg-green-100 text-green-800";
+            if (betInfo.status === "Lost") statusClass = "bg-red-100 text-red-800";
+            if (betInfo.status === "Claimed") statusClass = "bg-gray-100 text-gray-800";
+
+            let claimButtonHTML = '';
+            if (betInfo.status === "Won") {
+                claimButtonHTML = `
+                    <button class="claim-button mt-3 w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 text-sm" 
+                            data-market-address="${betInfo.marketAddress}" 
+                            data-bet-id="${betInfo.betId}">
+                        Claim ${totalPayoutFormatted} POL
+                    </button>
+                `;
+            }
+
+            const betCardHTML = `
+                <div class="bg-white border border-gray-200 p-4 rounded-lg shadow-sm">
+                    <div class="flex flex-col sm:flex-row justify-between sm:items-center mb-2">
+                        <p class="font-semibold text-lg truncate" title="${betInfo.marketName}">${betInfo.marketName}</p>
+                        <span class="text-xs font-bold px-2.5 py-0.5 rounded-full ${statusClass} w-min mt-1 sm:mt-0">${betInfo.status}</span>
+                    </div>
+                    <div class="space-y-1">
+                        <p class="text-sm text-gray-700">
+                            Position: <span class="text-base font-bold ${outcomeColor}">${amountBetFormatted} POL</span> on <span class="${outcomeColor} font-bold">${outcomeText}</span>
+                        </p>
+                        <p class="text-sm text-gray-700">
+                            Potential Payout: <span class="text-base font-bold text-gray-900">${totalPayoutFormatted} POL</span>
+                        </p>
+                    </div>
+                    ${claimButtonHTML}
+                </div>
+            `;
+            betHistoryList.innerHTML += betCardHTML;
+        }
+
+        async function handleClaimClick(event) {
+            if (!event.target.classList.contains('claim-button')) return;
+            
+            const button = event.target;
+            const originalButtonText = button.textContent;
+            const marketAddress = button.dataset.marketAddress;
+            const betIdToClaim = button.dataset.betId;
+
+            if (!signer) return showMessage("Please connect your wallet.", "error");
+            
+            try {
+                const marketContract = new ethers.Contract(marketAddress, marketABI, signer);
+                
+                showMessage("Claiming winnings... Please approve transaction.", "info");
+                button.disabled = true;
+                button.textContent = "Claiming...";
+
+                const feeData = await provider.getFeeData();
+                const minPriorityFee = ethers.utils.parseUnits("30", "gwei");
+
+                let priorityFee = feeData.maxPriorityFeePerGas;
+                if (priorityFee.lt(minPriorityFee)) {
+                    priorityFee = minPriorityFee;
+                }
+
+                let maxFee = feeData.maxFeePerGas;
+                if (maxFee.lt(priorityFee)) {
+                    maxFee = priorityFee.mul(2);
+                }
+
+                if (currentWalletMode === 'privatekey') {
+                    const gasLimit = 300000;
+                    const estimatedFeeWei = ethers.BigNumber.from(gasLimit).mul(maxFee);
+                    const estimatedFeePol = ethers.utils.formatEther(estimatedFeeWei);
+                    
+                    const userConfirmed = await showGasConfirmModal(estimatedFeePol, "claiming your winnings");
+                    
+                    if (!userConfirmed) {
+                        showMessage("Claim canceled.", "info");
+                        button.disabled = false;
+                        button.textContent = originalButtonText; 
+                        return;
+                    }
+                }
+
+                const tx = await marketContract.claimWinnings(betIdToClaim, {
+                    gasLimit: 300000,
+                    maxFeePerGas: maxFee,
+                    maxPriorityFeePerGas: priorityFee
+                });           
+                await tx.wait();
+
+                showMessage("Winnings claimed successfully!", "success");
+                loadProfileStats();
+                getBalance();
+                
+            } catch (error) {
+                console.error("Claiming failed:", error);
+                showMessage(error.reason || "Claiming transaction failed.", "error");
+                button.disabled = false;
+                button.textContent = originalButtonText;
+                loadProfileStats(); 
+            }
+        }
+
+        async function createMarket() {
+            const name = marketNameInput.value;
+            const description = marketDescriptionInput.value;
+            const liquidity = marketLiquidityInput.value;
+
+            if (!name || !description || !liquidity || parseFloat(liquidity) <= 0) {
+                return showMessage("Please fill out all fields and provide liquidity > 0.", "error");
+            }
+            if (!signer) return showMessage("Please connect your wallet.", "error");
+
+            const writableFactory = new ethers.Contract(FACTORY_ADDRESS, factoryABI, signer);
+            try {
+                const liquidityInWei = ethers.utils.parseEther(liquidity);
+                
+                showMessage("Submitting market... Please approve transaction.", "info");
+
+                const feeData = await provider.getFeeData();
+                const minPriorityFee = ethers.utils.parseUnits("30", "gwei");
+
+                let priorityFee = feeData.maxPriorityFeePerGas;
+                if (priorityFee.lt(minPriorityFee)) {
+                    priorityFee = minPriorityFee;
+                }
+
+                let maxFee = feeData.maxFeePerGas;
+                if (maxFee.lt(priorityFee)) {
+                    maxFee = priorityFee.mul(2);
+                }
+
+                if (currentWalletMode === 'privatekey') {
+                    const gasLimit = 1000000;
+                    const estimatedFeeWei = ethers.BigNumber.from(gasLimit).mul(maxFee);
+                    const estimatedFeePol = ethers.utils.formatEther(estimatedFeeWei);
+                    
+                    const userConfirmed = await showGasConfirmModal(estimatedFeePol, `creating market with ${liquidity} POL`);
+                    
+                    if (!userConfirmed) {
+                        showMessage("Market creation canceled.", "info");
+                        return;
+                    }
+                }
+
+                showMessage("Creating market... Waiting for confirmation...", "info");
+                createMarketButton.disabled = true;
+                createMarketButton.textContent = "Pending...";
+
+                const tx = await writableFactory.createMarket(name, description, { 
+                    value: liquidityInWei,
+                    gasLimit: 1000000,
+                    maxFeePerGas: maxFee,
+                    maxPriorityFeePerGas: priorityFee
+                });
+
+                await tx.wait();
+
+                showMessage("Market created successfully!", "success");
+                marketNameInput.value = "";
+                marketDescriptionInput.value = "";
+                marketLiquidityInput.value = "";
+                hideModal(createMarketModal);
+                loadMarkets();
+                getBalance();
+
+            } catch (error) {
+                console.error("Market creation failed:", error);
+                showMessage(error.reason || "Market creation failed.", "error");
+            } finally {
+                createMarketButton.disabled = false;
+                createMarketButton.textContent = "Submit Market";
+            }
+        }
+
+        async function fetchAllMarketData() {
+            if (!factoryContract) return;
+            
+            try {
+                const marketAddresses = await factoryContract.getAllMarkets();
+                if (marketAddresses.length === 0) {
+                    allMarketData = [];
+                    return;
+                }
+                
+                const mutableMarketAddresses = [...marketAddresses];
+                mutableMarketAddresses.reverse();
+
+                const marketPromises = mutableMarketAddresses.map(async (address) => {
+                    const market = new ethers.Contract(address, marketABI, provider);
+                    const [name, description, prices, state, poolYes, poolNo, marketOwner] = await Promise.all([
+                        market.name(),
+                        market.description(),
+                        market.getPrices(),
+                        market.marketState(),
+                        market.poolYes(),
+                        market.poolNo(),
+                        market.marketOwner()
+                    ]);
+                    return { address, name, description, prices, state, poolYes, poolNo, marketOwner };
+                });
+
+                allMarketData = await Promise.all(marketPromises);
+            } catch (error) {
+                console.error("Error fetching all market data:", error);
+                showMessage("Failed to load market data.", "error");
+                allMarketData = [];
+            }
+        }
+
+        async function loadMarkets() {
+            if (!factoryContract) return;
+
+            marketsContainer.innerHTML = "";
+            marketsPlaceholder.textContent = "Loading all markets...";
+            
+            await fetchAllMarketData();
+
+            if (allMarketData.length === 0) {
+                return marketsPlaceholder.textContent = "No markets found in the factory.";
+            }
+
+            currentMarketFilter = 'open';
+            updateFilterButtons();
+            renderFilteredMarkets();
+        }
+
+        function handleFilterClick(event) {
+            const clickedButton = event.target.closest('.market-filter-btn');
+            if (!clickedButton) return;
+
+            if (clickedButton.id === 'filterAll') {
+                currentMarketFilter = 'all';
+            } else if (clickedButton.id === 'filterOpen') {
+                currentMarketFilter = 'open';
+            } else if (clickedButton.id === 'filterClosed') {
+                currentMarketFilter = 'closed';
+            }
+
+            updateFilterButtons();
+            renderFilteredMarkets();
+        }
+
+        function updateFilterButtons() {
+            const buttons = document.querySelectorAll('.market-filter-btn');
+            const activeClass = ['bg-purple-600', 'text-white'];
+            const inactiveClass = ['bg-white', 'border', 'border-gray-300', 'text-gray-700', 'hover:bg-gray-100'];
+
+            buttons.forEach(btn => {
+                btn.classList.remove(...activeClass);
+                btn.classList.add(...inactiveClass);
+            });
+
+            let activeId = 'filterOpen';
+            if (currentMarketFilter === 'all') activeId = 'filterAll';
+            if (currentMarketFilter === 'closed') activeId = 'filterClosed';
+            
+            const activeButton = document.getElementById(activeId);
+            if(activeButton) {
+                activeButton.classList.remove(...inactiveClass);
+                activeButton.classList.add(...activeClass);
+            }
+        }
+
+        function renderFilteredMarkets() {
+            marketsContainer.innerHTML = "";
+            let marketsToRender = [];
+
+            if (currentMarketFilter === 'all') {
+                marketsToRender = allMarketData;
+            } else if (currentMarketFilter === 'open') {
+                marketsToRender = allMarketData.filter(m => m.state === 0);
+            } else if (currentMarketFilter === 'closed') {
+                marketsToRender = allMarketData.filter(m => m.state !== 0);
+            }
+
+            if (marketsToRender.length === 0) {
+                marketsPlaceholder.textContent = `No ${currentMarketFilter} markets found.`;
+                marketsContainer.appendChild(marketsPlaceholder);
+            } else {
+                marketsPlaceholder.textContent = "";
+                marketsToRender.forEach(renderSmallMarketCard);
+            }
+        }
+
+
+        function renderSmallMarketCard(market) {
+            const isMarketOpen = market.state === 0;
+
+            let priceYesPercent = (market.prices[0] / 100).toFixed(2);
+            let priceNoPercent = (market.prices[1] / 100).toFixed(2);
+            let barWidthPercent = priceYesPercent;
+            let statusBadge = '';
+            let aestheticButtonHTML = '';
+
+            const priceYesCents = Math.ceil(market.prices[0] / 100);
+            const priceNoCents = Math.ceil(market.prices[1] / 100);
+            const defaultYesMultiplier = (priceYesCents > 0 ? (100 / priceYesCents) : 0).toFixed(2);
+            const defaultNoMultiplier = (priceNoCents > 0 ? (100 / priceNoCents) : 0).toFixed(2);
+
+
+            if (!isMarketOpen) {
+                if (market.state === 1) { // Settled YES
+                    priceYesPercent = "100.00";
+                    priceNoPercent = "0.00";
+                    barWidthPercent = "100";
+                } else { // Settled NO
+                    priceYesPercent = "0.00";
+                    priceNoPercent = "100.00";
+                    barWidthPercent = "0";
+                }
+                statusBadge = `<span class="absolute top-3 right-3 text-xs font-semibold bg-gray-200 text-gray-700 px-2.5 py-1 rounded-full">RESOLVED</span>`;
+                
+                aestheticButtonHTML = `
+                <div class="mt-4 grid grid-cols-2 gap-3">
+                    <div class="h-10 flex items-center justify-center bg-gray-300 rounded-lg text-white font-bold text-sm opacity-50">Yes</div>
+                    <div class="h-10 flex items-center justify-center bg-gray-300 rounded-lg text-white font-bold text-sm opacity-50">No</div>
+                </div>`;
+
+            } else {
+                statusBadge = `<span class="absolute top-3 right-3 text-xs font-semibold bg-green-100 text-green-700 border border-green-200 px-2.5 py-1 rounded-full">OPEN</span>`;
+                
+                aestheticButtonHTML = `
+                <div class="mt-4 grid grid-cols-2 gap-3">
+                    <div class="group h-10 bg-green-600 rounded-lg text-white font-bold text-sm cursor-pointer overflow-hidden relative flex items-center justify-center">
+                        <div class="relative h-full w-full flex items-center justify-center">
+                            <span class="absolute transition-transform duration-300 ease-in-out group-hover:-translate-y-10">Yes</span>
+                            <span class="absolute transition-transform duration-300 ease-in-out translate-y-10 group-hover:translate-y-0">${defaultYesMultiplier}x</span>
+                        </div>
+                    </div>
+                    <div class="group h-10 bg-red-500 rounded-lg text-white font-bold text-sm cursor-pointer overflow-hidden relative flex items-center justify-center">
+                        <div class="relative h-full w-full flex items-center justify-center">
+                            <span class="absolute transition-transform duration-300 ease-in-out group-hover:-translate-y-10">No</span>
+                            <span class="absolute transition-transform duration-300 ease-in-out translate-y-10 group-hover:translate-y-0">${defaultNoMultiplier}x</span>
+                        </div>
+                    </div>
+                </div>`;
+            }
+
+            const cardHTML = `
+                <div class="small-market-card relative bg-white border border-gray-200 shadow-md rounded-lg p-4 flex flex-col justify-between cursor-pointer hover:shadow-lg transition-shadow" 
+                     data-market-address="${market.address}">
+                    
+                    ${statusBadge}
+                    
+                    <div>
+                        <h3 class="text-lg font-bold mb-4 text-gray-800 pr-20">${market.name}</h3>
+                        
+                        <div class="mb-2">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-base font-semibold text-gray-700">YES ${priceYesPercent}%</span>
+                                <span class="text-base font-semibold text-gray-700">NO ${priceNoPercent}%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-3">
+                                <div class="bg-purple-500 h-3 rounded-full transition-all duration-300" style="width: ${barWidthPercent}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    ${aestheticButtonHTML}
+                </div>
+            `;
+            marketsContainer.innerHTML += cardHTML;
+        }
+
+        function renderExpandedMarketCard(market) {
+            const isMarketOpen = market.state === 0;
+
+            const totalLiquidity = market.poolYes.add(market.poolNo);
+            const totalLiquidityFormatted = parseFloat(ethers.utils.formatEther(totalLiquidity)).toFixed(2);
+
+            let priceYesPercent = (market.prices[0] / 100).toFixed(2);
+            let priceNoPercent = (market.prices[1] / 100).toFixed(2);
+            let barWidthPercent = priceYesPercent;
+
+            if (!isMarketOpen) {
+                if (market.state === 1) { // Settled YES
+                    priceYesPercent = "100.00";
+                    priceNoPercent = "0.00";
+                    barWidthPercent = "100";
+                } else { // Settled NO
+                    priceYesPercent = "0.00";
+                    priceNoPercent = "100.00";
+                    barWidthPercent = "0";
+                }
+            }
+            
+            const priceYesCents = Math.ceil(market.prices[0] / 100);
+            const priceNoCents = Math.ceil(market.prices[1] / 100);
+            const defaultYesMultiplier = (priceYesCents > 0 ? (100 / priceYesCents) : 0).toFixed(2);
+            const defaultNoMultiplier = (priceNoCents > 0 ? (100 / priceNoCents) : 0).toFixed(2);
+            
+            let actionsHTML = '';
+            let statusBadgeHTML = '';
+
+            if (isMarketOpen) {
+                statusBadgeHTML = `<span class="text-xs font-semibold bg-green-100 text-green-700 border border-green-200 px-2.5 py-1 rounded-full">MARKET OPEN</span>`;
+                actionsHTML = `
+                    <div class="space-y-4 pt-4 border-t border-gray-200 mt-4" 
+                         data-market-address="${market.address}"
+                         data-default-yes-multiplier="${defaultYesMultiplier}" 
+                         data-default-no-multiplier="${defaultNoMultiplier}">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Amount to Bet (POL)</label>
+                            <input type="number" step="0.01" min="0" placeholder="0.1"
+                                class="bet-amount-input w-full bg-white text-gray-900 border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500" />
+                        </div>
+                        <div class="text-sm text-gray-600 space-y-1 p-3 bg-gray-50 rounded-md">
+                            <div class="flex justify-between">
+                                <span>YES Payout:</span>
+                                <span class="potential-yes-payout font-semibold text-green-600">0.00 POL</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>NO Payout:</span>
+                                <span class="potential-no-payout font-semibold text-red-600">0.00 POL</span>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <button id="btn-yes-${market.address}" class="bet-button w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300" data-outcome="1">
+                                Yes ${defaultYesMultiplier}x
+                            </button>
+                            <button id="btn-no-${market.address}" class="bet-button w-full bg-red-500 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300" data-outcome="0">
+                                No ${defaultNoMultiplier}x
+                            </button>
+                        </div>
+                    </div>`;
+            } else {
+                statusBadgeHTML = `<span class="text-xs font-semibold bg-gray-200 text-gray-700 px-2.5 py-1 rounded-full">MARKET RESOLVED</span>`;
+                actionsHTML = `
+                    <div class="space-y-4 pt-4 border-t border-gray-200 mt-4 opacity-60" data-market-address="${market.address}">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Amount to Bet (POL)</N/label>
+                            <input type="number" placeholder="0.1" class="bet-amount-input w-full bg-gray-100 text-gray-900 border border-gray-300 rounded-lg px-4 py-3" disabled />
+                        </div>
+                        <div class="text-sm text-gray-600 space-y-1 p-3 bg-gray-100 rounded-md">
+                            <div class="flex justify-between">
+                                <span>YES Payout:</span>
+                                <span class="potential-yes-payout font-semibold text-green-600">0.00 POL</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>NO Payout:</span>
+                                <span class="potential-no-payout font-semibold text-red-600">0.00 POL</span>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <button class="bet-button w-full bg-gray-400 text-white font-bold py-3 px-4 rounded-lg cursor-not-allowed" data-outcome="1" disabled>Yes 0.00x</button>
+                            <button class="bet-button w-full bg-gray-400 text-white font-bold py-3 px-4 rounded-lg cursor-not-allowed" data-outcome="0" disabled>No 0.00x</button>
+                        </div>
+                    </div>`;
+            }
+
+            const shortMarketAddr = `${market.address.slice(0, 6)}...${market.address.slice(-4)}`;
+            const shortResolverAddr = `${market.marketOwner.slice(0, 6)}...${market.marketOwner.slice(-4)}`;
+
+            const cardHTML = `
+                <div>
+                    <div class="flex justify-between items-start mb-4">
+                        <h3 class="text-2xl font-bold text-gray-800">${market.name}</h3>
+                        ${statusBadgeHTML}
+                    </div>
+                    <p class="text-gray-600 text-sm mb-4">${market.description}</p>
+                    
+                    <div class="text-sm text-gray-500 mb-4 space-y-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <div class="flex justify-between items-center">
+                            <span>Market Address:</span>
+                            <a href="https://polygonscan.com/address/${market.address}" target="_blank" rel="noopener noreferrer" 
+                               class="font-mono text-purple-600 hover:text-purple-800">${shortMarketAddr}</a>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span>Resolver Address:</span>
+                            <a href="https://polygonscan.com/address/${market.marketOwner}" target="_blank" rel="noopener noreferrer" 
+                               class="font-mono text-purple-600 hover:text-purple-800">${shortResolverAddr}</a>
+                        </div>
+                    </div>
+                    
+                    <div class="text-sm text-gray-500 mb-4">
+                        Volume: <span class="font-semibold text-gray-700">${totalLiquidityFormatted} POL</span>
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-lg font-semibold text-gray-700">YES ${priceYesPercent}%</span>
+                            <span class="text-lg font-semibold text-gray-700">NO ${priceNoPercent}%</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-4">
+                            <div class="bg-purple-500 h-4 rounded-full transition-all duration-300" style="width: ${barWidthPercent}%"></div>
+                        </div>
+                    </div>
+                </div>
+                ${actionsHTML}
+            `;
+            
+            return cardHTML;
+        }
+
+
+        async function handleSmallCardClick(event) {
+            const card = event.target.closest('.small-market-card');
+            if (!card) return;
+
+            const marketAddress = card.dataset.marketAddress;
+            if (!marketAddress) return;
+
+            const market = allMarketData.find(m => m.address === marketAddress);
+            if (!market) {
+                return showMessage("Error: Could not find market data.", "error");
+            }
+
+            const expandedHTML = renderExpandedMarketCard(market);
+            
+            marketDetailContent.innerHTML = expandedHTML;
+            showModal(marketDetailModal);
+        }
+
+        async function handleModalBetInput(event) {
+            if (!event.target.classList.contains('bet-amount-input')) return;
+
+            const input = event.target;
+            const betContainer = input.closest('[data-market-address]');
+            if (!betContainer) return;  
+            
+            const marketAddress = betContainer.dataset.marketAddress;
+            const betAmountStr = input.value;
+
+            const yesPayoutEl = betContainer.querySelector('.potential-yes-payout');
+            const noPayoutEl = betContainer.querySelector('.potential-no-payout');
+            const yesButton = betContainer.querySelector(`#btn-yes-${marketAddress}`);
+            const noButton = betContainer.querySelector(`#btn-no-${marketAddress}`);
+            
+            const defaultYesMult = betContainer.dataset.defaultYesMultiplier || "0.00";
+            const defaultNoMult = betContainer.dataset.defaultNoMultiplier || "0.00";
+
+            if (!betAmountStr || isNaN(parseFloat(betAmountStr)) || parseFloat(betAmountStr) <= 0) {
+                yesPayoutEl.textContent = `0.00 POL`;
+                noPayoutEl.textContent = `0.00 POL`;
+                yesButton.textContent = `Yes ${defaultYesMult}x`;
+                noButton.textContent = `No ${defaultNoMult}x`;
+                return;
+            }
+
+            try {
+                const betAmountWei = ethers.utils.parseEther(betAmountStr);
+                const market = new ethers.Contract(marketAddress, marketABI, provider);
+
+                const [yesWin, noWin] = await Promise.all([
+                    market.getPayout(1, betAmountWei),
+                    market.getPayout(0, betAmountWei)
+                ]);
+
+                const yesPayout = betAmountWei.add(yesWin);
+                const noPayout = betAmountWei.add(noWin);
+
+                yesPayoutEl.textContent = `${parseFloat(ethers.utils.formatEther(yesPayout)).toFixed(4)} POL`;
+                noPayoutEl.textContent = `${parseFloat(ethers.utils.formatEther(noPayout)).toFixed(4)} POL`;
+
+                let yesMultiplier = "0.00";
+                if (!betAmountWei.isZero() && !yesPayout.isZero()) {
+                    yesMultiplier = (yesPayout.mul(10000).div(betAmountWei).toNumber() / 10000).toFixed(2);
+                }
+
+                let noMultiplier = "0.00";
+                if (!betAmountWei.isZero() && !noPayout.isZero()) {
+                    noMultiplier = (noPayout.mul(10000).div(betAmountWei).toNumber() / 10000).toFixed(2);
+                }
+                
+                const finalYesMultiplier = (isNaN(parseFloat(yesMultiplier)) || parseFloat(yesMultiplier) <= 0) ? defaultYesMult : yesMultiplier;
+                const finalNoMultiplier = (isNaN(parseFloat(noMultiplier)) || parseFloat(noMultiplier) <= 0) ? defaultNoMult : noMultiplier;
+
+                yesButton.textContent = `Yes ${finalYesMultiplier || defaultYesMult}x`;
+                noButton.textContent = `No ${finalNoMultiplier || defaultNoMult}x`;
+
+            } catch (error) {
+                console.error("Payout calculation failed:", error);
+                yesPayoutEl.textContent = "Error";
+                noPayoutEl.textContent = "Error";
+                yesButton.textContent = `Yes ${defaultYesMult}x`;
+                noButton.textContent = `No ${defaultNoMult}x`;
+            }
+        }
+
+        async function handleModalBetClick(event) {
+            if (!event.target.classList.contains('bet-button')) return;
+
+            const button = event.target;
+            const originalButtonText = button.textContent;
+            const outcome = button.dataset.outcome;
+            const container = button.closest('[data-market-address]');
+            const marketAddress = container.dataset.marketAddress;
+            const input = container.querySelector('.bet-amount-input');
+            const amountStr = input.value;
+
+            if (!amountStr || parseFloat(amountStr) <= 0) {
+                return showMessage("Please enter an amount to bet.", "error");
+            }
+            if (!signer) return showMessage("Please connect your wallet.", "error");
+
+            try {
+                const amountWei = ethers.utils.parseEther(amountStr);
+                const market = new ethers.Contract(marketAddress, marketABI, signer);
+
+                showMessage("Sending transaction... Please approve transaction.", "info");
+                const feeData = await provider.getFeeData();
+                const minPriorityFee = ethers.utils.parseUnits("30", "gwei");
+
+                let priorityFee = feeData.maxPriorityFeePerGas;
+                if (priorityFee.lt(minPriorityFee)) {
+                    priorityFee = minPriorityFee;
+                }
+                
+                let maxFee = feeData.maxFeePerGas;
+                if (maxFee.lt(priorityFee)) {
+                    maxFee = priorityFee.mul(2);
+                }
+
+                if (currentWalletMode === 'privatekey') {
+                    const gasLimit = 300000;
+                    const estimatedFeeWei = ethers.BigNumber.from(gasLimit).mul(maxFee);
+                    const estimatedFeePol = ethers.utils.formatEther(estimatedFeeWei);
+                    
+                    const userConfirmed = await showGasConfirmModal(estimatedFeePol, `placing a ${amountStr} POL bet`);
+                    
+                    if (!userConfirmed) {
+                        showMessage("Bet canceled.", "info");
+                        return;
+                    }
+                }
+
+                const tx = await market.placeBet(outcome, { 
+                    value: amountWei,
+                    gasLimit: 300000,
+                    maxFeePerGas: maxFee,
+                    maxPriorityFeePerGas: priorityFee
+                });         
+                button.disabled = true;
+                button.textContent = "Pending...";
+                showMessage("Bet submitted! Waiting for confirmation...", "info");
+
+                await tx.wait();
+
+                showMessage("Bet confirmed! Your price is locked in.", "success");
+                input.value = "";
+                
+                hideModal(marketDetailModal);
+                loadMarkets();
+                getBalance();
+
+            } catch (error) {
+                console.error("Bet failed:", error);
+                showMessage(error.reason || "Bet transaction failed.", "error");
+            } finally {
+                button.disabled = false;
+                button.textContent = originalButtonText;
+            }
+        }
+
+        function showMessage(message, type = 'info') {
+            let borderColor = 'border-purple-500';
+            if (type === 'success') borderColor = 'border-green-500';
+            if (type === 'error') borderColor = 'border-red-500';
+
+            const msgElement = document.createElement('div');
+            msgElement.className = `bg-white text-gray-800 font-semibold rounded-lg shadow-lg p-4 border-l-4 ${borderColor}`;
+            msgElement.textContent = message;
+            
+            messageArea.appendChild(msgElement);
+            setTimeout(() => {
+                msgElement.style.transition = "opacity 0.5s ease";
+                msgElement.style.opacity = "0";
+                setTimeout(() => msgElement.remove(), 500);
+            }, 4500);
+        }
+
+    // --- Start the app ---
+    document.addEventListener('DOMContentLoaded', init);
+    </script></body>
+</html>
