@@ -6,6 +6,7 @@
     <title>VeltMarket | Fixed Odds Markets</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         /* Style for modal backdrop */
         .modal-backdrop {
@@ -15,7 +16,7 @@
         body.modal-open {
             overflow: hidden;
         }
-        /* [NEW] Keyframes for the soft glowing orb */
+        /* Keyframes for the soft glowing orb */
         @keyframes subtle-float {
             0%, 100% {
                 transform: translateY(0) scale(1);
@@ -27,9 +28,23 @@
         .orb-float {
             animation: subtle-float 8s ease-in-out infinite;
         }
+        /* [NEW] Style for QR Code container */
+        #addFundsQRCode {
+            background: #1f2937; /* bg-gray-800 */
+            padding: 16px;
+            border-radius: 8px;
+            display: inline-block;
+            border: 1px solid #374151; /* border-gray-700 */
+        }
+        #addFundsQRCode img {
+            border-radius: 4px;
+        }
     </style>
 </head>
-<body class="bg-gray-900 text-gray-100 font-sans"> <nav class="bg-gray-900 p-4 sticky top-0 z-40 border-b border-gray-700"> <div class="container mx-auto flex justify-between items-center">
+<body class="bg-gray-900 text-gray-100 font-sans">
+
+    <nav class="bg-gray-900 p-4 sticky top-0 z-40 border-b border-gray-700">
+        <div class="container mx-auto flex justify-between items-center">
             
             <h1 class="text-3xl font-bold text-white">
                 <span class="text-purple-400">Velt</span>Market
@@ -83,6 +98,9 @@
                 <div id="menuActionsMobile" class="hidden flex-col">
                     <button id="profileButtonMobile" class="w-full text-left p-3 rounded-lg hover:bg-gray-700 font-medium text-gray-200 transition duration-300">
                         My Portfolio
+                    </button>
+                    <button id="addFundsButtonMobile" class="w-full text-left p-3 rounded-lg hover:bg-gray-700 font-medium text-gray-200 transition duration-300">
+                        Add Funds
                     </button>
                     <button id="showCreateMarketButtonMobile" class="w-full text-left p-3 rounded-lg hover:bg-gray-700 font-medium text-gray-200 transition duration-300">
                         Create Market
@@ -139,9 +157,7 @@
         </p>
     </div>
 
-
     <div id="messageArea" class="fixed bottom-4 left-4 right-4 sm:bottom-10 sm:right-10 sm:left-auto sm:max-w-sm z-50 space-y-3"></div>
-
 
     <div id="walletTypeModal" class="hidden fixed inset-0 z-50 flex items-center justify-center transition-all duration-300 ease-out opacity-0 scale-95">
         <div class="modal-backdrop absolute inset-0"></div>
@@ -174,7 +190,7 @@
             
             <div class="p-4 bg-red-900/50 border border-red-700 text-red-200 rounded-lg mb-4">
                 <h3 class="font-bold">SECURITY WARNING</h3>
-                <p class="text-sm">Pasting your private key is extremely dangerous. <strong>Saving it in your browser is even more so and can lead to total loss of funds.</strong> Only use a new, empty wallet for testing. This key is held in memory and is <strong>gone on refresh</strong> (unless you check "Save").</p>
+                <p class="text-sm">Pasting your private key is <strong>extremely dangerous.</strong> Saving it in your browser is even more so and can lead to <strong>total loss</strong> of funds. <strong>DO NOT USE YOUR PERSONAL WALLET</strong>. This key is held in memory and is <strong>gone on refresh</strong> (unless you check "Save").</p>
             </div>
 
             <div class="space-y-4">
@@ -335,13 +351,44 @@
                 <h2 class="text-2xl font-semibold text-white">Market Details</h2>
                 <button id="closeMarketDetailModal" class="text-gray-400 hover:text-gray-200 text-3xl">&times;</button>
             </div>
-            <div id="marketDetailContent" class="overflow-y-auto"></div>
+            <div id="marketDetailContent" class="overflow-y-auto">
+                </div>
+        </div>
+    </div>
+    
+    <div id="addFundsModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="modal-backdrop absolute inset-0"></div>
+        <div class="bg-gray-800 border border-gray-700 p-6 rounded-lg shadow-xl z-10 w-full max-w-md">
+            <div class="flex justify-between items-center mb-4 pb-4 border-b border-gray-600">
+                <h2 class="text-2xl font-semibold text-white">Add Funds</h2>
+                <button id="closeAddFundsModal" class="text-gray-400 hover:text-gray-200 text-3xl">&times;</button>
+            </div>
+            <div class="space-y-4">
+                <p class="text-sm text-gray-300">
+                    Only send <strong>POL (Polygon Mainnet)</strong> to this address. Sending any other asset will result in a loss of funds.
+                </p>
+                
+                <div class="text-center my-4">
+                    <div id="addFundsQRCode" class="inline-block">
+                        </div>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-1">Your Wallet Address</label>
+                    <div class="flex gap-2">
+                        <input id="addFundsAddress" readonly class="w-full bg-gray-700 text-gray-300 border border-gray-600 rounded-lg px-3 py-2 font-mono text-sm" />
+                        <button id="copyFundsAddressButton" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 text-sm">
+                            Copy
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
 
     <script>
-        // --- Contract ABIs (Unchanged) ---
+        // --- Contract ABIs ---
         const factoryABI = [
             "function getAllMarkets() public view returns (address[] memory)",
             "event MarketCreated(uint indexed id, address indexed marketAddress, address indexed creator, string name, uint initialLiquidity)",
@@ -379,12 +426,13 @@
         let currentMarketFilter = 'open';
         let currentWalletMode = null;
         let activeAddress = null;
+        let qrCodeInstance = null; // To hold the QR code object
 
         // --- DOM Elements ---
         const messageArea = document.getElementById('messageArea');
         const navMenu = document.getElementById('navMenu');
         
-        // [NEW] Landing/Main containers
+        // Landing/Main containers
         const landingPageContainer = document.getElementById('landingPageContainer');
         const landingPageConnectButton = document.getElementById('landingPageConnectButton');
         const mainContentContainer = document.getElementById('mainContentContainer');
@@ -406,6 +454,7 @@
         const networkStatusMobile = document.getElementById('networkStatusMobile');
         const profileButtonMobile = document.getElementById('profileButtonMobile');
         const showCreateMarketButtonMobile = document.getElementById('showCreateMarketButtonMobile');
+        const addFundsButtonMobile = document.getElementById('addFundsButtonMobile'); // New
         const walletInfoMobile = document.getElementById('walletInfoMobile');
         const menuActionsMobile = document.getElementById('menuActionsMobile');
         
@@ -451,9 +500,15 @@
         const gasAlertAction = document.getElementById('gasAlertAction');
         const gasAlertFee = document.getElementById('gasAlertFee');
 
+        const addFundsModal = document.getElementById('addFundsModal'); // New
+        const closeAddFundsModal = document.getElementById('closeAddFundsModal'); // New
+        const addFundsQRCode = document.getElementById('addFundsQRCode'); // New
+        const addFundsAddress = document.getElementById('addFundsAddress'); // New
+        const copyFundsAddressButton = document.getElementById('copyFundsAddressButton'); // New
+
 
         /**
-         * [NEW] Checks for a saved private key in localStorage and auto-connects
+         * Checks for a saved private key in localStorage and auto-connects
          */
         async function checkAutoLogin() {
             const savedPK = localStorage.getItem('veltMarketPK');
@@ -492,7 +547,7 @@
          * Initializes the application
          */
         async function init() {
-            // [NEW] Check for saved wallet on load
+            // Check for saved wallet on load
             await checkAutoLogin();
 
             marketFilterContainer.addEventListener('click', handleFilterClick);
@@ -507,14 +562,14 @@
             // Connect buttons
             walletButtonDesktop.addEventListener('click', toggleWalletModal);
             walletButtonMobile.addEventListener('click', toggleWalletModal);
-            landingPageConnectButton.addEventListener('click', toggleWalletModal); // [NEW]
+            landingPageConnectButton.addEventListener('click', toggleWalletModal);
 
             // Modal Toggles
             closeWalletTypeModal.addEventListener('click', () => hideModal(walletTypeModal));
             connectMetaMaskButton.addEventListener('click', connectMetaMask);
             connectPrivateKeyButton.addEventListener('click', () => {
                 hideModal(walletTypeModal);
-                showModal(privateKeyModal); // This modal is not animated, uses standard showModal
+                showModal(privateKeyModal);
             });
 
             closePrivateKeyModal.addEventListener('click', () => hideModal(privateKeyModal));
@@ -525,6 +580,8 @@
             // Popup menu actions
             profileButtonMobile.addEventListener('click', openProfileModal);
             showCreateMarketButtonMobile.addEventListener('click', () => showModal(createMarketModal));
+            addFundsButtonMobile.addEventListener('click', openAddFundsModal); // New
+            copyFundsAddressButton.addEventListener('click', copyAddressToClipboard); // New
 
             navMenu.addEventListener('click', (event) => {
                 if (event.target.closest('button')) {
@@ -537,7 +594,7 @@
             createMarketButton.addEventListener('click', createMarket);
             
             // Backdrop click listeners for all modals
-            [profileModal, createMarketModal, marketDetailModal, walletTypeModal, privateKeyModal, newWalletModal, gasAlertModal].forEach(modal => {
+            [profileModal, createMarketModal, marketDetailModal, walletTypeModal, privateKeyModal, newWalletModal, gasAlertModal, addFundsModal].forEach(modal => {
                 modal.addEventListener('click', (event) => {
                     if (event.target.classList.contains('modal-backdrop')) {
                         hideModal(modal);
@@ -550,9 +607,10 @@
             closeCreateMarketModal.addEventListener('click', () => hideModal(createMarketModal));
             closeMarketDetailModal.addEventListener('click', () => hideModal(marketDetailModal));
             closeGasAlertModal.addEventListener('click', () => hideModal(gasAlertModal));
+            closeAddFundsModal.addEventListener('click', () => hideModal(addFundsModal)); // New
             
             // Set initial UI state (disconnected)
-            if (!signer) { // [NEW] Only update if auto-login didn't run
+            if (!signer) {
                 updateWalletUI(null);
             }
         }
@@ -566,7 +624,6 @@
             }
         }
 
-        // [UPDATED] showModal to handle animation for walletTypeModal
         function showModal(modal) {
             document.body.classList.add('modal-open');
             
@@ -582,9 +639,8 @@
             }
         }
 
-        // [UPDATED] hideModal to handle animation for walletTypeModal
         function hideModal(modal) {
-            const allModals = [profileModal, createMarketModal, marketDetailModal, walletTypeModal, privateKeyModal, newWalletModal, gasAlertModal, navMenu];
+            const allModals = [profileModal, createMarketModal, marketDetailModal, walletTypeModal, privateKeyModal, newWalletModal, gasAlertModal, navMenu, addFundsModal];
             
             // Animation logic for wallet modal
             if (modal === walletTypeModal) {
@@ -602,6 +658,11 @@
             if (modal === marketDetailModal) {
                 marketDetailContent.innerHTML = "";
             }
+            
+            if (modal === addFundsModal) {
+                addFundsQRCode.innerHTML = ""; // Clear QR code
+                qrCodeInstance = null;
+            }
 
             // Checks if any modals are still open to decide on body class
             function checkModalState() {
@@ -614,6 +675,48 @@
 
         function openProfileModal() {
             showModal(profileModal);
+        }
+
+        function openAddFundsModal() {
+            if (!activeAddress) {
+                showMessage("Please connect your wallet first.", "error");
+                return;
+            }
+            
+            addFundsAddress.value = activeAddress;
+            
+            // Clear old QR code if it exists
+            addFundsQRCode.innerHTML = "";
+            if (qrCodeInstance) {
+                qrCodeInstance.clear();
+            }
+            
+            // Generate new QR code
+            try {
+                qrCodeInstance = new QRCode(addFundsQRCode, {
+                    text: activeAddress,
+                    width: 240,
+                    height: 240,
+                    colorDark : "#e5e7eb", // gray-200
+                    colorLight : "#1f2937", // bg-gray-800
+                    correctLevel : QRCode.CorrectLevel.H
+                });
+            } catch (e) {
+                console.error("QR Code generation failed:", e);
+                addFundsQRCode.innerHTML = "<p class='text-red-400 text-sm'>Could not generate QR code.</p>";
+            }
+            
+            showModal(addFundsModal);
+        }
+
+        function copyAddressToClipboard() {
+            if (!activeAddress) return;
+            navigator.clipboard.writeText(activeAddress).then(() => {
+                showMessage("Address copied to clipboard!", "success");
+            }, (err) => {
+                showMessage("Failed to copy address.", "error");
+                console.error('Copy failed', err);
+            });
         }
 
         function showGasConfirmModal(estimatedFee, actionDescription) {
@@ -655,10 +758,8 @@
 
         function toggleWalletModal() {
             if (signer) {
-                // If signer exists, the button in the popup was clicked to "Switch Wallet"
                 disconnect();
             }
-            // Always show the wallet type modal, as disconnect() will clear the signer
             showModal(walletTypeModal);
         }
 
@@ -667,7 +768,7 @@
                 return showMessage("MetaMask not installed.", "error");
             }
             try {
-                hideModal(walletTypeModal); // Hide with animation
+                hideModal(walletTypeModal);
                 await window.ethereum.request({ method: 'eth_requestAccounts' });
                 
                 provider = new ethers.providers.Web3Provider(window.ethereum);
@@ -709,16 +810,15 @@
                 signer = new ethers.Wallet(pk, provider);
                 const address = await signer.getAddress();
                 
-                // [NEW] Save to localStorage if checked
                 const saveKey = document.getElementById('savePrivateKeyCheckbox').checked;
                 if (saveKey) {
                     localStorage.setItem('veltMarketPK', pk);
                 } else {
-                    localStorage.removeItem('veltMarketPK'); // Ensure it's gone if unchecked
+                    localStorage.removeItem('veltMarketPK');
                 }
                 
                 privateKeyInput.value = "";
-                document.getElementById('savePrivateKeyCheckbox').checked = false; // Reset checkbox
+                document.getElementById('savePrivateKeyCheckbox').checked = false;
                 hideModal(privateKeyModal);
                 await onWalletConnected(address, 'privatekey');
 
@@ -752,16 +852,15 @@
                 signer = new ethers.Wallet(pk, provider);
                 const address = await signer.getAddress();
                 
-                // [NEW] Save to localStorage if checked
                 const saveKey = document.getElementById('saveNewPrivateKeyCheckbox').checked;
                 if (saveKey) {
                     localStorage.setItem('veltMarketPK', pk);
                 } else {
-                    localStorage.removeItem('veltMarketPK'); // Just in case
+                    localStorage.removeItem('veltMarketPK');
                 }
                 
                 hideModal(newWalletModal);
-                document.getElementById('saveNewPrivateKeyCheckbox').checked = false; // Reset checkbox
+                document.getElementById('saveNewPrivateKeyCheckbox').checked = false;
                 await onWalletConnected(address, 'privatekey');
             } catch (error) {
                 console.error("Failed to use new wallet:", error);
@@ -792,14 +891,13 @@
             activeAddress = null;
             allMarketData = [];
             
-            // [NEW] Clear saved private key on disconnect
             localStorage.removeItem('veltMarketPK');
             
             updateWalletUI(null);  
             marketsContainer.innerHTML = '';
-            marketsPlaceholder.classList.add('hidden'); // Hide placeholder
+            marketsPlaceholder.classList.add('hidden');
             
-            [profileModal, createMarketModal, marketDetailModal, walletTypeModal, privateKeyModal, newWalletModal, gasAlertModal, navMenu].forEach(hideModal);
+            [profileModal, createMarketModal, marketDetailModal, walletTypeModal, privateKeyModal, newWalletModal, gasAlertModal, navMenu, addFundsModal].forEach(hideModal);
             document.body.classList.remove('modal-open');
 
             if (window.ethereum && window.ethereum.removeAllListeners) {
@@ -830,13 +928,13 @@
             const isConnected = !!address;
             const shortAddress = isConnected ? `${address.slice(0, 6)}...${address.slice(-4)}` : '';
 
-            // --- [NEW] Toggle Landing/Main App ---
+            // Toggle Landing/Main App
             landingPageContainer.classList.toggle('hidden', isConnected);
             mainContentContainer.classList.toggle('hidden', !isConnected);
 
             document.body.classList.toggle('overflow-hidden', !isConnected);
 
-            // --- Desktop UI ---
+            // Desktop UI
             walletBalance.classList.toggle('hidden', !isConnected);
             walletAddress.classList.toggle('hidden', !isConnected);
             hamburgerButtonDesktopToggle.classList.toggle('hidden', !isConnected);
@@ -846,7 +944,7 @@
                 walletAddress.textContent = shortAddress;
             }
 
-            // --- Mobile/Popup UI ---
+            // Mobile/Popup UI
             walletButtonMobile.textContent = isConnected ? "Switch Wallet" : "Connect Wallet";
             walletInfoMobile.classList.toggle('hidden', !isConnected);
             menuActionsMobile.classList.toggle('hidden', !isConnected);
@@ -855,7 +953,7 @@
                 walletAddressMobile.textContent = shortAddress;
             }
 
-            // --- Common fields ---
+            // Common fields
             if (!isConnected) {
                 networkStatusMobile.textContent = "";
                 networkStatusMobile.className = "text-sm";
@@ -1239,12 +1337,11 @@
         function updateFilterButtons() {
             const buttons = document.querySelectorAll('.market-filter-btn');
             const activeClass = ['bg-purple-600', 'text-white'];
-            // [CHANGED] Dark mode inactive
             const inactiveClass = ['bg-gray-700', 'border', 'border-gray-600', 'text-gray-200', 'hover:bg-gray-600'];
 
             buttons.forEach(btn => {
-                btn.classList.remove(...activeClass, ...inactiveClass); // Remove both
-                btn.classList.add(...inactiveClass); // Add inactive by default
+                btn.classList.remove(...activeClass, ...inactiveClass);
+                btn.classList.add(...inactiveClass);
             });
 
             let activeId = 'filterOpen';
@@ -1626,7 +1723,7 @@
                     gasLimit: 300000,
                     maxFeePerGas: maxFee,
                     maxPriorityFeePerGas: priorityFee
-                });      
+                });    
                 button.disabled = true;
                 button.textContent = "Pending...";
                 showMessage("Bet submitted! Waiting for confirmation...", "info");
@@ -1655,7 +1752,6 @@
             if (type === 'error') bgColor = 'bg-red-600';
 
             const msgElement = document.createElement('div');
-            // [CHANGED] Dark mode message
             msgElement.className = `bg-gray-700 text-white font-semibold rounded-lg shadow-lg p-4 border-l-4 border-purple-400`;
             if (type === 'success') msgElement.className = `bg-gray-700 text-white font-semibold rounded-lg shadow-lg p-4 border-l-4 border-green-400`;
             if (type === 'error') msgElement.className = `bg-gray-700 text-white font-semibold rounded-lg shadow-lg p-4 border-l-4 border-red-400`;
@@ -1672,5 +1768,6 @@
 
     // --- Start the app ---
     document.addEventListener('DOMContentLoaded', init);
-    </script></body>
+    </script>
+</body>
 </html>
